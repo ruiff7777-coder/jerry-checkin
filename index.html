@@ -70,7 +70,7 @@
     <section class="page" id="page-manage">
       <div class="topline"><div><div class="eyebrow">Plan your trail</div><h1>习惯管理</h1></div></div>
       <div class="manage-layout">
-        <section class="panel"><div class="panel-title"><h3>我的打卡项</h3><span>规则修改次日生效</span></div><div id="manage-list"></div></section>
+        <section class="panel"><div class="panel-title"><h3>我的打卡项</h3><span>当天新增立即生效</span></div><div id="manage-list"></div></section>
         <aside><section class="panel"><div class="panel-title"><h3>添加新事项</h3></div><form id="habit-form" class="form-grid" onsubmit="addHabit(event)"><div class="field"><label for="habit-name">事项名称</label><input id="habit-name" maxlength="24" placeholder="例如：阅读 20 分钟" required></div><div class="field"><label for="habit-type">重复规则</label><select id="habit-type" onchange="renderRuleFields()"><option value="daily">每天</option><option value="weekly">指定星期</option><option value="once">指定日期一次</option></select></div><div class="field" id="weekly-field" hidden><label>选择星期</label><div class="weekdays" id="weekday-box"></div></div><div class="field" id="once-field" hidden><label for="once-date">执行日期</label><input id="once-date" type="date"></div><button class="btn btn-primary" type="submit">加入我的计划</button></form></section><section class="panel" style="margin-top:18px"><div class="panel-title"><h3>数据备份</h3></div><div class="data-actions"><button class="btn btn-soft" onclick="exportData()">导出 JSON</button><button class="btn btn-line" onclick="document.getElementById('import-file').click()">导入备份</button><input id="import-file" type="file" accept="application/json" hidden onchange="importData(event)"></div><div class="photo-credit">角色图片由你提供并保存在本地项目中。页面不向任何第三方上传图片、打卡记录或日记。</div></section></aside>
       </div>
     </section>
@@ -129,7 +129,26 @@
   function changeCycle(n){const current=cycleNumberFor(dateStr()),next=current+cycleOffset+n;if(next<0||next>current)return;cycleOffset+=n;renderSummary()}
   function renderRuleFields(){const t=$('#habit-type').value;$('#weekly-field').hidden=t!=='weekly';$('#once-field').hidden=t!=='once'}
   function renderManage(){const hs=habits();$('#manage-list').innerHTML=hs.length?hs.map(h=>`<div class="habit-manage-row"><div class="name">${esc(h.name)}</div><span class="tag">${esc(recurrenceLabel(h))}</span><button class="btn btn-danger" onclick="removeHabit('${h.id}')">删除</button></div>`).join(''):'<div class="empty">还没有打卡项，先添加一件想坚持的事吧。</div>';renderRuleFields()}
-  function addHabit(e){e.preventDefault();const name=$('#habit-name').value.trim(),type=$('#habit-type').value;if(!name)return;let weekdays=[];if(type==='weekly')weekdays=[...$$('#weekday-box input:checked')].map(x=>Number(x.value));const onceDate=$('#once-date').value;if(type==='weekly'&&!weekdays.length)return toast('至少选择一个星期');if(type==='once'&&!onceDate)return toast('请选择执行日期');const hs=habits();hs.push({id:'habit_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),name,type,weekdays,onceDate,active:true,createdAt:dateStr()});save(KEY.habits,hs);e.target.reset();renderRuleFields();renderManage();toast('已加入计划，将从下一份清单生效')}
+  function addHabit(e){
+    e.preventDefault();
+    const name=$('#habit-name').value.trim(),type=$('#habit-type').value;
+    if(!name)return;
+    let weekdays=[];
+    if(type==='weekly')weekdays=[...$$('#weekday-box input:checked')].map(x=>Number(x.value));
+    const onceDate=$('#once-date').value;
+    if(type==='weekly'&&!weekdays.length)return toast('至少选择一个星期');
+    if(type==='once'&&!onceDate)return toast('请选择执行日期');
+    const newHabit={id:'habit_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),name,type,weekdays,onceDate,active:true,createdAt:dateStr()};
+    const hs=habits();hs.push(newHabit);save(KEY.habits,hs);
+    const today=dateStr(),todayRecord=getRecord(today);
+    const appliesToday=scheduled(newHabit,today);
+    if(appliesToday&&!todayRecord.planned.some(x=>x.id===newHabit.id)){
+      todayRecord.planned.push({id:newHabit.id,name:newHabit.name,type:newHabit.type});
+      putRecord(todayRecord);
+    }
+    e.target.reset();renderRuleFields();renderManage();
+    toast(appliesToday?'已加入今天的清单':'已保存，将在符合规则的日期出现');
+  }
   function removeHabit(id){const h=habits().find(x=>x.id===id);if(!h||!confirm(`删除「${h.name}」？历史记录会保留。`))return;save(KEY.habits,habits().filter(x=>x.id!==id));renderManage();toast('已删除')}
   function playRandom(force=false){let next;if(SONGS.length===1)next=0;else do{next=Math.floor(Math.random()*SONGS.length)}while(next===currentSong);currentSong=next;audio.src=SONGS[next].url;$('#song-name').textContent=SONGS[next].name;$('#music-player').classList.add('show');audio.play().then(()=>{$('#music-player').classList.add('playing');$('#play-btn').textContent='Ⅱ'}).catch(()=>{toast('点击播放器开始奖励音乐');$('#play-btn').textContent='▶'})}
   function toggleMusic(){if(!audio.src)return playRandom(true);if(audio.paused)audio.play();else audio.pause()}function nextMusic(){playRandom(true)}function closeMusic(){audio.pause();$('#music-player').classList.remove('show','playing')}audio.addEventListener('play',()=>{$('#music-player').classList.add('playing');$('#play-btn').textContent='Ⅱ'});audio.addEventListener('pause',()=>{$('#music-player').classList.remove('playing');$('#play-btn').textContent='▶'});audio.addEventListener('ended',()=>{$('#music-player').classList.remove('playing');$('#play-btn').textContent='▶'});

@@ -4,6 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#164f86">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Jerry’s Check-in">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/app-icon.png">
+  <link rel="icon" type="image/png" href="assets/app-icon.png">
   <title>Jerry’s Check-in · 每日打卡</title>
   <style>
     :root{
@@ -71,7 +77,7 @@
       <div class="topline"><div><div class="eyebrow">Plan your trail</div><h1>习惯管理</h1></div></div>
       <div class="manage-layout">
         <section class="panel"><div class="panel-title"><h3>我的打卡项</h3><span>当天新增立即生效</span></div><div id="manage-list"></div></section>
-        <aside><section class="panel"><div class="panel-title"><h3>添加新事项</h3></div><form id="habit-form" class="form-grid" onsubmit="addHabit(event)"><div class="field"><label for="habit-name">事项名称</label><input id="habit-name" maxlength="24" placeholder="例如：阅读 20 分钟" required></div><div class="field"><label for="habit-type">重复规则</label><select id="habit-type" onchange="renderRuleFields()"><option value="daily">每天</option><option value="weekly">指定星期</option><option value="once">指定日期一次</option></select></div><div class="field" id="weekly-field" hidden><label>选择星期</label><div class="weekdays" id="weekday-box"></div></div><div class="field" id="once-field" hidden><label for="once-date">执行日期</label><input id="once-date" type="date"></div><button class="btn btn-primary" type="submit">加入我的计划</button></form></section><section class="panel" style="margin-top:18px"><div class="panel-title"><h3>数据备份</h3></div><div class="data-actions"><button class="btn btn-soft" onclick="exportData()">导出 JSON</button><button class="btn btn-line" onclick="document.getElementById('import-file').click()">导入备份</button><input id="import-file" type="file" accept="application/json" hidden onchange="importData(event)"></div><div class="photo-credit">角色图片由你提供并保存在本地项目中。页面不向任何第三方上传图片、打卡记录或日记。</div></section></aside>
+        <aside><section class="panel"><div class="panel-title"><h3>添加新事项</h3></div><form id="habit-form" class="form-grid" onsubmit="addHabit(event)"><div class="field"><label for="habit-name">事项名称</label><input id="habit-name" maxlength="24" placeholder="例如：阅读 20 分钟" required></div><div class="field"><label for="habit-type">重复规则</label><select id="habit-type" onchange="renderRuleFields()"><option value="daily">每天</option><option value="weekly">指定星期</option><option value="once">指定日期一次</option></select></div><div class="field" id="weekly-field" hidden><label>选择星期</label><div class="weekdays" id="weekday-box"></div></div><div class="field" id="once-field" hidden><label for="once-date">执行日期</label><input id="once-date" type="date"></div><button class="btn btn-primary" type="submit">加入我的计划</button></form></section><section class="panel" style="margin-top:18px"><div class="panel-title"><h3>添加到电脑</h3></div><p style="margin:0;color:var(--muted);line-height:1.7">使用 Safari 打开正式网站，然后选择菜单栏「文件 → 添加到程序坞」。安装后会作为独立 App 窗口运行。</p></section><section class="panel" style="margin-top:18px"><div class="panel-title"><h3>数据备份</h3></div><div class="data-actions"><button class="btn btn-soft" onclick="exportData()">导出 JSON</button><button class="btn btn-line" onclick="document.getElementById('import-file').click()">导入备份</button><input id="import-file" type="file" accept="application/json" hidden onchange="importData(event)"></div><div class="photo-credit">角色图片由你提供并保存在本地项目中。页面不向任何第三方上传图片、打卡记录或日记。</div></section></aside>
       </div>
     </section>
   </main>
@@ -158,7 +164,7 @@
   function skipReview(){const r=getRecord(currentReviewDate,false);r.reviewSkipped=true;putRecord(r);$('#review-modal').classList.remove('show')}
   function exportData(){const data={schemaVersion:2,exportedAt:new Date().toISOString(),habits:habits(),records:records(),settings:settings()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download=`jessie-checkin-${dateStr()}.json`;a.click();URL.revokeObjectURL(a.href)}
   function importData(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=()=>{try{const d=JSON.parse(reader.result);if(d.schemaVersion!==2||!Array.isArray(d.habits)||typeof d.records!=='object')throw 0;if(!confirm('导入会覆盖当前打卡数据，确定继续吗？'))return;save(KEY.habits,d.habits);save(KEY.records,d.records);save(KEY.settings,d.settings||{schemaVersion:2,cycleStart:''});toast('数据已恢复');renderManage()}catch{toast('这不是有效的打卡备份文件')}};reader.readAsText(f);e.target.value=''}
-  function init(){migrate();$('#weekday-box').innerHTML='一二三四五六日'.split('').map((x,i)=>`<label class="day-check"><input type="checkbox" value="${i+1}"><span>${x}</span></label>`).join('');$('#once-date').min=dateStr();renderToday();setTimeout(dueReview,500);setInterval(dueReview,60000)}
+  function init(){migrate();$('#weekday-box').innerHTML='一二三四五六日'.split('').map((x,i)=>`<label class="day-check"><input type="checkbox" value="${i+1}"><span>${x}</span></label>`).join('');$('#once-date').min=dateStr();renderToday();setTimeout(dueReview,500);setInterval(dueReview,60000);if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('./sw.js').catch(()=>{})}
   init();
 </script>
 </body>
